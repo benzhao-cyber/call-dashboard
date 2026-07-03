@@ -1,0 +1,257 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calls × Agent Status Dashboard — Import</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:light;--paper:#f4f3ef;--ink:#171a1f;--muted:#6a7280;--line:#e4e0d8;--alert:#cf4435;--ok:#2f8f76}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:16.5px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:34px 22px 80px}
+.mono{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+h1{font-size:26px;font-weight:800;margin:0 0 4px}.lead{color:var(--muted);font-size:14px;margin:2px 0}
+.eyebrow{font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin:28px 0 12px;display:flex;align-items:center;gap:10px}.eyebrow::before{content:"";flex:0 0 20px;height:2px;background:var(--ink)}
+.controls{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}
+.controls label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em}
+.controls input,.controls select{font:inherit;font-size:15px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+.arrow{font-size:18px;color:var(--muted);padding-bottom:6px}
+.btn{font:inherit;font-size:14.5px;padding:8px 15px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:6px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--ink)}
+.up{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin:14px 0}
+.up .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.up .fld{flex:1;min-width:220px}.up .fld label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.hiddenfile{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.filepick{display:flex;align-items:center;gap:10px;margin-top:2px}
+.filebtn{display:inline-block;font-size:13.5px;padding:7px 13px;border:1px solid var(--line);background:var(--paper);border-radius:6px;cursor:pointer}
+.filebtn:hover{background:#eceae4}
+.fname{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.msg{font-size:14px;margin:8px 2px;min-height:20px}.msg.err{color:var(--alert)}.msg.ok{color:var(--ok)}
+.chk{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}.kpi .v{font-family:ui-monospace,monospace;font-size:28px;font-weight:700}.kpi.bad .v{color:var(--alert)}.kpi.ok .v{color:var(--ok)}.kpi .l{font-size:13.5px;color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0;overflow-x:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);margin:4px 2px 12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}.legend b{width:13px;height:13px;border-radius:2px;display:inline-block}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:15px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}th{background:#efede7;font-size:13px;color:#3a4048}tr:last-child td{border-bottom:none}
+.sub{color:var(--muted);font-size:13.5px}.nm{font-weight:600}.note{font-size:13px;color:var(--muted);margin:8px 2px}
+#dash{display:none}
+#tip{position:fixed;pointer-events:none;display:none;background:#171a1f;color:#fff;padding:9px 12px;border-radius:7px;font-size:14px;line-height:1.5;white-space:pre-line;box-shadow:0 6px 18px rgba(0,0,0,.28);z-index:80}
+footer{margin-top:40px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><div class="wrap">
+<h1>Calls × Agent Status Dashboard</h1>
+<p class="lead">Upload Zoho exports (CSV/XLSX, parsed locally in your browser — nothing is uploaded). Calls read the <b>call_log*</b> sheet; status reads the <b>Agent Status List Report</b> detail (<b>agentstatus*</b> sheet). The processed panel sheet is ignored.</p>
+<div class="up">
+  <div class="row">
+    <div class="fld"><label>1 · Agent Status List Report — CSV/XLSX</label><div class="filepick"><label for="f_status" class="filebtn">Choose file</label><span class="fname" id="fn_f_status">No file selected</span></div><input type="file" id="f_status" class="hiddenfile" multiple accept=".csv,.xlsx,.xls"></div>
+    <div class="fld"><label>2 · Answered + Missed call log — CSV/XLSX</label><div class="filepick"><label for="f_ans" class="filebtn">Choose file</label><span class="fname" id="fn_f_ans">No file selected</span></div><input type="file" id="f_ans" class="hiddenfile" multiple accept=".csv,.xlsx,.xls"></div>
+    <div class="fld"><label>3 · Outbound call log — CSV/XLSX</label><div class="filepick"><label for="f_out" class="filebtn">Choose file</label><span class="fname" id="fn_f_out">No file selected</span></div><input type="file" id="f_out" class="hiddenfile" multiple accept=".csv,.xlsx,.xls"></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn" id="gen">Generate / Update</button>
+    <label class="chk"><input type="checkbox" id="accum" checked> Accumulate into this browser's history</label>
+    <button class="btn ghost" id="clear">Clear history</button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+<div id="dash">
+<div class="controls">
+  <div><label>Start date</label><input type="date" id="sd"></div>
+  <div><label>Start hour</label><select id="sh"></select></div>
+  <span class="arrow">→</span>
+  <div><label>End date</label><input type="date" id="ed"></div>
+  <div><label>End hour</label><select id="eh"></select></div>
+  <div><label>Display mode</label><select id="mode"><option value="spread">Spread (by day)</option><option value="overlap">Overlap (single 24h)</option></select></div><div id="agwrap" style="display:none"><label>Overlap agents</label><div id="agboxes" style="display:flex;gap:12px;padding-top:5px;flex-wrap:wrap"></div></div><button class="btn" id="apply">Apply</button>
+  <button class="btn ghost" id="lastday">Last day</button>
+  <button class="btn ghost" id="allrange">Full range</button>
+  <div style="flex:1"></div>
+  <div class="sub">Data range <span id="range" class="mono"></span></div>
+</div>
+<div class="kpis">
+<div class="kpi"><div class="v mono" id="k_total">0</div><div class="l">Total Inbound</div></div>
+<div class="kpi ok"><div class="v mono" id="k_ans">0</div><div class="l">Answered</div></div>
+<div class="kpi bad"><div class="v mono" id="k_miss">0</div><div class="l">Missed</div></div>
+<div class="kpi bad"><div class="v mono" id="k_rate">—</div><div class="l">Miss Rate</div></div>
+<div class="kpi"><div class="v mono" id="k_out">0</div><div class="l">Outbound</div></div>
+</div>
+<p class="eyebrow">Calls × Agent Status (aligned hourly grid — scroll horizontally)</p>
+<div class="card">
+<div class="legend">
+<span><b style="background:#2f8f76"></b>Answered</span><span><b style="background:#cf4435"></b>Missed</span><span><b style="background:#9aa0aa"></b>Outbound</span>
+<span style="width:16px"></span>
+<span><b style="background:#2f8f76"></b>Available</span><span><b style="background:#2f6fb0"></b>On Call</span><span><b style="background:#d9a441"></b>On Break</span><span><b style="background:#8a5cd0"></b>Busy</span><span><b style="background:#d3d1ca"></b>Offline</span>
+</div>
+<div id="grid"></div>
+</div>
+<p class="eyebrow">By Agent (selected range)</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Agent</th><th>Answered</th><th>Outbound</th><th>On Call</th><th>Available</th><th>On Break</th><th>Offline</th><th>Assessment</th></tr></thead><tbody id="atab"></tbody></table></div>
+<p class="note">Range can span multiple days. Each cell = 1 hour (gaps between cells; midnight separators with date labels). Hover shows status / start time / duration. Status durations are clipped per segment and summed over the range.</p>
+</div>
+<footer>Local report generator. Rules: incoming=Answered; timedout/missed/abandoned=Missed (After-Sales Team queue only); outgoing=Outbound. Agents: Aden/Ash/Kane/Mark/Martin.</footer>
+</div>
+<div id="tip"></div>
+<script>
+var CALLS=[], SEGS=[], TARGET=["Aden","Ash","Kane","Mark","Martin"];
+var MISSED=new Set(["timedout","missed","abandoned"]);
+var SCOLOR={"Available":"#2f8f76","On Call":"#2f6fb0","On Break":"#d9a441","Busy":"#8a5cd0","Offline":"#d3d1ca","Wrap Up":"#b0b6bf"};
+var HR=3600000, LSKEY="callDashStore_v3";
+function $(id){return document.getElementById(id);}
+function pad(n){return String(n).padStart(2,'0');}
+function norm(s){return String(s==null?"":s).trim().toLowerCase();}
+function shortName(a){if(a==null)return null;a=String(a).split(",")[0];a=a.replace(/aftersales?|insale/ig,"").trim();return a?a[0].toUpperCase()+a.slice(1).toLowerCase():null;}
+function pad2(n){return String(n).padStart(2,'0');}
+function dToT(d){if(!(d instanceof Date)||isNaN(d))return null;return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"T"+pad2(d.getHours())+":"+pad2(d.getMinutes());}
+function toT(v){if(v==null||v==="")return null;if(v instanceof Date)return dToT(v);var s=String(v).trim();var m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[ T](\d{1,2}):(\d{2})/);if(m)return m[1]+"-"+pad2(+m[2])+"-"+pad2(+m[3])+"T"+pad2(+m[4])+":"+m[5];return dToT(new Date(s));}
+function parse(s){var a=s.split('T'),p=a[0].split('-').map(Number),q=(a[1]||"00:00").split(':').map(Number);return new Date(p[0],p[1]-1,p[2],q[0],q[1]);}
+function fmtHM(sec){return Math.floor(sec/3600)+"h"+pad(Math.floor(sec%3600/60))+"m";}
+function fmtDur(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;if(h)return h+"h "+pad(m)+"m";if(m)return m+"m "+pad(s)+"s";return s+"s";}
+function csvToRows(text){var rows=[],row=[],cur="",inq=false;for(var i=0;i<text.length;i++){var c=text[i];if(inq){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else inq=false;}else cur+=c;}else{if(c==='"')inq=true;else if(c===','){row.push(cur);cur="";}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}else if(c==='\r'){}else cur+=c;}}if(cur!==""||row.length){row.push(cur);rows.push(row);}return rows;}
+function sheetRowsByPrefix(ab,prefixes){var wb=XLSX.read(ab,{type:'array',cellDates:true});var name=null;for(var i=0;i<wb.SheetNames.length;i++){var ln=wb.SheetNames[i].toLowerCase();for(var j=0;j<prefixes.length;j++){if(ln.indexOf(prefixes[j])===0){name=wb.SheetNames[i];break;}}if(name)break;}if(!name)throw new Error('No sheet starting with '+prefixes.join('/')+'; found: '+wb.SheetNames.join(", "));return XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:null,blankrows:false});}
+function findCallHeader(rows){for(var i=0;i<Math.min(80,rows.length);i++){var set=new Set((rows[i]||[]).map(norm));if(set.has("call type")&&set.has("call time"))return i;}return -1;}
+function parseCallRows(rows){var h=findCallHeader(rows);if(h<0)throw new Error('Call log header not found (Call Type + Call Time)');var hdr=rows[h].map(norm),idx=function(n){return hdr.indexOf(n);};var iCT=idx("call type"),iAg=idx("agent"),iT=idx("call time"),iQ=idx("queue"),iD=idx("duration");var out=[];for(var r=h+1;r<rows.length;r++){var row=rows[r];if(!row)continue;var ct=row[iCT];if(ct==null||String(ct).trim()==="")continue;out.push({ct:String(ct).toLowerCase(),agent:iAg>=0?row[iAg]:null,t:toT(row[iT]),queue:iQ>=0?row[iQ]:null,dur:iD>=0?String(row[iD]==null?"":row[iD]):""});}return out;}
+function parseCallFile(file){if(ext(file)==="csv")return file.text().then(function(t){return parseCallRows(csvToRows(t));});return file.arrayBuffer().then(function(ab){return parseCallRows(sheetRowsByPrefix(ab,["call_log"]));});}
+function cellToT(v){if(v instanceof Date)return dToT(v);if(v==null)return null;var s=String(v).trim();var m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[ T](\d{1,2}):(\d{2})/);if(m)return m[1]+"-"+pad2(+m[2])+"-"+pad2(+m[3])+"T"+pad2(+m[4])+":"+m[5];return null;}
+function parseSegRows(rows){var segs=[],cur=null;for(var i=0;i<rows.length;i++){var c=rows[i]||[];var c0=c[0]==null?"":String(c[0]).trim();if(c0==="Agent Name"){cur=shortName(c[1]);continue;}var s=cellToT(c[0]),e=cellToT(c[1]),st=c[2]==null?"":String(c[2]).trim();if(s&&e&&st&&st.toLowerCase()!=="status")segs.push({g:cur,s:s,e:e,st:st});}return segs;}
+function parseStatusFile(file){if(ext(file)==="csv")return file.text().then(function(t){return parseSegRows(csvToRows(t));});return file.arrayBuffer().then(function(ab){return parseSegRows(sheetRowsByPrefix(ab,["agentstatus","agent_status"]));});}
+function ext(file){var n=file.name.toLowerCase();return n.slice(n.lastIndexOf(".")+1);}
+function buildCalls(ansRecs,outRecs){var calls=[];if(ansRecs)ansRecs.forEach(function(r){if(!(r.queue&&String(r.queue).toLowerCase().indexOf("after-sale")>=0))return;var k=r.ct==="incoming"?"a":(MISSED.has(r.ct)?"m":null);if(!k||!r.t)return;calls.push({t:r.t,k:k,g:k==="a"?shortName(r.agent):null,d:r.dur});});if(outRecs)outRecs.forEach(function(r){if(r.ct!=="outgoing"||!r.t)return;calls.push({t:r.t,k:"o",g:shortName(r.agent),d:r.dur});});return calls;}
+function loadStore(){try{var s=localStorage.getItem(LSKEY);return s?JSON.parse(s):{calls:[],segs:[]};}catch(e){return {calls:[],segs:[]};}}
+function saveStore(st){try{localStorage.setItem(LSKEY,JSON.stringify(st));}catch(e){}}
+function mergeInto(store,calls,segs){var seen={};store.calls.forEach(function(c){seen[c.t+"|"+c.k+"|"+c.g+"|"+c.d]=1;});var ca=0;calls.forEach(function(c){var k=c.t+"|"+c.k+"|"+c.g+"|"+c.d;if(!seen[k]){store.calls.push(c);seen[k]=1;ca++;}});var seg={};store.segs.forEach(function(s){seg[s.g+"|"+s.s+"|"+s.e+"|"+s.st]=1;});var sa=0;segs.forEach(function(s){var k=s.g+"|"+s.s+"|"+s.e+"|"+s.st;if(!seg[k]){store.segs.push(s);seg[k]=1;sa++;}});return ca+sa;}
+function allDates(){var set={};CALLS.forEach(function(c){set[c.t.slice(0,10)]=1;});SEGS.forEach(function(s){set[s.s.slice(0,10)]=1;set[s.e.slice(0,10)]=1;});return Object.keys(set).sort();}
+function winFromInputs(){var sd=$('sd').value,ed=$('ed').value,sh=+$('sh').value,eh=+$('eh').value;
+  if(!sd||!ed)return null;var A=parse(sd+"T00:00").getTime()+sh*HR;var B=parse(ed+"T00:00").getTime()+eh*HR;return B>A?[A,B]:null;}
+function renderWindow(){
+  var w=winFromInputs();if(!w){$('grid').innerHTML='<p class="note">Please select a valid range (end must be after start).</p>';return;}
+  var winA=w[0],winB=w[1],N=Math.round((winB-winA)/HR);
+  if(N>24*45){$('grid').innerHTML='<p class="note">Range too long (&gt;45 days), please narrow it.</p>';return;}
+  var ans=Array(N).fill(0),miss=Array(N).fill(0),out=Array(N).fill(0),per={};TARGET.forEach(function(n){per[n]={a:0,o:0};});
+  var TA=0,TM=0,TO=0;
+  CALLS.forEach(function(c){var tm=parse(c.t).getTime();if(tm<winA||tm>=winB)return;var i=Math.floor((tm-winA)/HR);
+    if(c.k==='a'){ans[i]++;TA++;if(per[c.g])per[c.g].a++;}else if(c.k==='m'){miss[i]++;TM++;}else if(c.k==='o'){out[i]++;TO++;if(per[c.g])per[c.g].o++;}});
+  var tot=TA+TM;
+  $('k_total').textContent=tot;$('k_ans').textContent=TA;$('k_miss').textContent=TM;$('k_rate').textContent=tot?Math.round(TM/tot*100)+"%":"—";$('k_out').textContent=TO;
+  var dur={},rowsForAgent={};TARGET.forEach(function(n){dur[n]={};rowsForAgent[n]=[];});
+  SEGS.forEach(function(s){if(!(s.g in dur))return;var a=parse(s.s).getTime(),b=parse(s.e).getTime();var A=a<winA?winA:a,B=b>winB?winB:b;if(B<=A)return;
+    dur[s.g][s.st]=(dur[s.g][s.st]||0)+(B-A)/1000;rowsForAgent[s.g].push({A:A,B:B,st:s.st,os:s.s,osec:(b-a)/1000});});
+  if($('mode').value==='overlap'){drawOverlap(winA,winB);}else{drawGrid(N,winA,ans,miss,out,rowsForAgent);}
+  $('atab').innerHTML=TARGET.map(function(n){var D=dur[n]||{};var oncall=D["On Call"]||0,avail=D["Available"]||0,brk=D["On Break"]||0,off=D["Offline"]||0,busy=D["Busy"]||0;var wk=oncall+avail+busy;var s;
+    if(wk<1800&&off>3600)s="🔴 Barely online";else if(brk>5400)s="⚠️ Long break";else if(oncall<600&&(per[n].a+per[n].o)<3)s="⚠️ Online, low output";else if(wk===0&&off===0&&brk===0)s="⚪ No data";else s="✅ Normal";
+    function f(x){return x?fmtHM(x):"—";}
+    return '<tr><td class="nm">'+n+'</td><td class="mono" style="color:#2f8f76;font-weight:700">'+per[n].a+'</td><td class="mono">'+per[n].o+'</td><td class="mono">'+f(oncall)+'</td><td class="mono">'+f(avail)+'</td><td class="mono">'+f(brk)+'</td><td class="mono">'+f(off)+'</td><td class="sub">'+s+'</td></tr>';}).join('');
+}
+function drawGrid(N,winA,ans,miss,out,rowsForAgent){
+  var cellW=26,HGAP=4,L=96,PADR=24;
+  function cx(i){return L+i*(cellW+HGAP);}
+  var W=cx(N)+PADR;
+  var dayY=18, labelY=42, callTop=58, callH=120, callBase=callTop+callH;
+  var tTop=callBase+48, rowH=30, rowGap=10;
+  var H=tTop+TARGET.length*(rowH+rowGap)+18;
+  var maxv=Math.max(1,Math.max.apply(null,ans),Math.max.apply(null,miss),Math.max.apply(null,out));
+  var unit=callH/maxv;
+  var p=['<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="height:auto;font-family:-apple-system,Segoe UI,sans-serif" width="'+W+'">'];
+  // day separators + labels + hour labels
+  for(var i=0;i<N;i++){var d=new Date(winA+i*HR),hh=d.getHours();
+    if(hh===0||i===0){var x=cx(i)-HGAP/2;p.push('<line x1="'+x.toFixed(1)+'" y1="'+(dayY+4)+'" x2="'+x.toFixed(1)+'" y2="'+(tTop+TARGET.length*(rowH+rowGap)-rowGap)+'" stroke="#e0ddd4"/>');
+      p.push('<text x="'+(cx(i)+2).toFixed(1)+'" y="'+dayY+'" font-size="12.5" font-weight="700" fill="#3a4048">'+pad2(d.getMonth()+1)+'/'+pad2(d.getDate())+'</text>');}
+    p.push('<text x="'+(cx(i)+cellW/2).toFixed(1)+'" y="'+labelY+'" text-anchor="middle" font-size="12" fill="#8a909a">'+pad(hh)+'</text>');
+  }
+  function nice(m){var raw=m/3,arr=[1,2,3,5,10,15,20,25,50,100];for(var i=0;i<arr.length;i++)if(arr[i]>=raw)return arr[i];return Math.ceil(raw/50)*50;}
+  var stp=nice(maxv);
+  for(var g=0;g<=maxv+0.001;g+=stp){var y=callBase-g*unit;p.push('<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+cx(N).toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#f2f1ec"/><text x="'+(L-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#a7acb3">'+g+'</text>');}
+  p.push('<text x="'+(L-8)+'" y="'+(callTop-4)+'" text-anchor="end" font-size="13" fill="#3a4048">Calls</text>');
+  for(var i=0;i<N;i++){var d=new Date(winA+i*HR),hh=d.getHours(),bw=cellW/3.3,x=cx(i);var lab=pad2(d.getMonth()+1)+'/'+pad2(d.getDate())+' '+pad(hh)+':00';
+    var vals=[[ans[i],"#2f8f76","Answered"],[miss[i],"#cf4435","Missed"],[out[i],"#9aa0aa","Outbound"]];
+    for(var b=0;b<3;b++){var barh=vals[b][0]*unit;if(barh>0)p.push('<rect class="cbar" data-st="'+vals[b][2]+'" data-os="'+lab+'" data-cnt="'+vals[b][0]+'" x="'+(x+b*bw*1.05).toFixed(1)+'" y="'+(callBase-barh).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+barh.toFixed(1)+'" fill="'+vals[b][1]+'" rx="1"/>');}
+  }
+  p.push('<line x1="'+L+'" y1="'+callBase+'" x2="'+cx(N).toFixed(1)+'" y2="'+callBase+'" stroke="#d8d6cf"/>');
+  for(var ai=0;ai<TARGET.length;ai++){var nm=TARGET[ai],y=tTop+ai*(rowH+rowGap);
+    p.push('<text x="'+(L-8)+'" y="'+(y+rowH/2+5).toFixed(1)+'" text-anchor="end" font-size="14" fill="#3a4048">'+nm+'</text>');
+    for(var i=0;i<N;i++){p.push('<rect x="'+cx(i).toFixed(1)+'" y="'+y+'" width="'+cellW.toFixed(1)+'" height="'+rowH+'" fill="#faf9f6" stroke="#efeee9" rx="2"/>');}
+    (rowsForAgent[nm]||[]).forEach(function(seg){var i0=Math.floor((seg.A-winA)/HR),i=i0<0?0:i0;
+      while(winA+i*HR<seg.B&&i<N){var cs=winA+i*HR,lo=Math.max(seg.A,cs),hi=Math.min(seg.B,cs+HR);if(hi>lo){var x0=cx(i)+cellW*((lo-cs)/HR),x1=cx(i)+cellW*((hi-cs)/HR);
+        var startLabel=seg.os.slice(5,10).replace('-','/')+" "+seg.os.slice(11,16);
+        p.push('<rect class="seg" data-st="'+seg.st+'" data-os="'+startLabel+'" data-dur="'+fmtDur(seg.osec)+'" x="'+x0.toFixed(1)+'" y="'+(y+2)+'" width="'+Math.max(0.6,x1-x0).toFixed(1)+'" height="'+(rowH-4)+'" fill="'+(SCOLOR[seg.st]||"#bbb")+'"/>');}
+      i++;}
+    });
+  }
+  p.push('</svg>');$('grid').innerHTML=p.join('');
+}
+
+function overlapDates(winA,winB){var out=[],d=new Date(winA);d.setHours(0,0,0,0);var end=new Date(winB);
+  while(d.getTime()<winB){out.push(new Date(d));d=new Date(d.getTime()+86400000);}
+  // trim if end lands exactly on a midnight
+  return out;}
+function drawOverlap(winA,winB){
+  var hF=+$('sh').value,hT=+$('eh').value; if(!(hT>hF)){hF=0;hT=24;}
+  var hours=[];for(var h=hF;h<hT;h++)hours.push(h);var n=hours.length;
+  var dates=overlapDates(winA,winB);
+  var agents=selectedAgents(); if(!agents.length){$('grid').innerHTML='<p class="note">Select at least one agent.</p>';return;}
+  // per-hour sum across days
+  var ans={},miss={},out={};hours.forEach(function(h){ans[h]=0;miss[h]=0;out[h]=0;});
+  var dset={};dates.forEach(function(d){dset[dToT(d).slice(0,10)]=1;});
+  CALLS.forEach(function(c){var ds=c.t.slice(0,10);if(!dset[ds])return;var h=+c.t.slice(11,13);if(h<hF||h>=hT)return;if(c.k==='a')ans[h]++;else if(c.k==='m')miss[h]++;else if(c.k==='o')out[h]++;});
+  // rows = each selected agent x each date
+  var rows=[];
+  agents.forEach(function(ag){dates.forEach(function(d,di){var dayStart=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0).getTime();var da=dayStart+hF*HR,db=dayStart+hT*HR,rws=[];
+    SEGS.forEach(function(seg){if(seg.g!==ag)return;var a=parse(seg.s).getTime(),b=parse(seg.e).getTime();var A=a<da?da:a,B=b>db?db:b;if(B<=A)return;rws.push({A:A,B:B,st:seg.st,os:seg.s,osec:(b-a)/1000,dayStart:dayStart});});
+    rows.push({ag:ag,d:d,rws:rws,newAgent:(di===0)});});});
+  var cellW=Math.max(24,Math.min(48,Math.floor(920/n))),HGAP=4,L=156,PADR=24;
+  function cx(i){return L+i*(cellW+HGAP);}
+  var W=cx(n)+PADR;
+  var labelY=30, callTop=44, callH=112, callBase=callTop+callH;
+  var tTop=callBase+44, rowH=22, rowGap=6;
+  var H=tTop+rows.length*(rowH+rowGap)+18;
+  var maxv=1;hours.forEach(function(h){maxv=Math.max(maxv,ans[h],miss[h],out[h]);});
+  var unit=callH/maxv;
+  var p=['<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="height:auto;font-family:-apple-system,Segoe UI,sans-serif" width="'+W+'">'];
+  for(var i=0;i<n;i++){p.push('<text x="'+(cx(i)+cellW/2).toFixed(1)+'" y="'+labelY+'" text-anchor="middle" font-size="12.5" fill="#6a7280">'+pad(hours[i])+'</text>');}
+  function nice(m){var raw=m/3,arr=[1,2,3,5,10,15,20,25,50,100,150,200];for(var i=0;i<arr.length;i++)if(arr[i]>=raw)return arr[i];return Math.ceil(raw/100)*100;}
+  var stp=nice(maxv);
+  for(var g=0;g<=maxv+0.001;g+=stp){var y=callBase-g*unit;p.push('<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+cx(n).toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#f2f1ec"/><text x="'+(L-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#a7acb3">'+g+'</text>');}
+  p.push('<text x="'+(L-8)+'" y="'+(callTop-4)+'" text-anchor="end" font-size="13" fill="#3a4048">Calls (sum)</text>');
+  for(var i=0;i<n;i++){var h=hours[i],bw=cellW/3.3,x=cx(i);var vals=[[ans[h],"#2f8f76","Answered"],[miss[h],"#cf4435","Missed"],[out[h],"#9aa0aa","Outbound"]];
+    for(var b=0;b<3;b++){var bh=vals[b][0]*unit;if(bh>0)p.push('<rect class="cbar" data-st="'+vals[b][2]+'" data-os="'+pad(h)+':00 sum ('+dates.length+' days)" data-cnt="'+vals[b][0]+'" x="'+(x+b*bw*1.05).toFixed(1)+'" y="'+(callBase-bh).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="'+vals[b][1]+'" rx="1"/>');}}
+  p.push('<line x1="'+L+'" y1="'+callBase+'" x2="'+cx(n).toFixed(1)+'" y2="'+callBase+'" stroke="#d8d6cf"/>');
+  var WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  for(var ri=0;ri<rows.length;ri++){var R=rows[ri],y=tTop+ri*(rowH+rowGap);
+    if(R.newAgent&&ri>0){var sy=(y-rowGap/2).toFixed(1);p.push('<line x1="8" y1="'+sy+'" x2="'+cx(n).toFixed(1)+'" y2="'+sy+'" stroke="#d8d6cf"/>');}
+    var lab=R.ag+' '+pad2(R.d.getMonth()+1)+'/'+pad2(R.d.getDate())+' '+WD[R.d.getDay()];
+    p.push('<text x="'+(L-8)+'" y="'+(y+rowH/2+4).toFixed(1)+'" text-anchor="end" font-size="12" fill="#3a4048">'+lab+'</text>');
+    for(var i=0;i<n;i++){p.push('<rect x="'+cx(i).toFixed(1)+'" y="'+y+'" width="'+cellW.toFixed(1)+'" height="'+rowH+'" fill="#faf9f6" stroke="#efeee9" rx="2"/>');}
+    R.rws.forEach(function(seg){var m0=(seg.A-seg.dayStart)/60000,m1=(seg.B-seg.dayStart)/60000;var h=Math.floor(m0/60);
+      while(h*60<m1&&h<hT){if(h>=hF){var lo=Math.max(m0,h*60),hi=Math.min(m1,(h+1)*60);if(hi>lo){var i=h-hF,x0=cx(i)+cellW*((lo-h*60)/60),x1=cx(i)+cellW*((hi-h*60)/60);
+        var startLabel=seg.os.slice(5,10).replace('-','/')+" "+seg.os.slice(11,16);
+        p.push('<rect class="seg" data-st="'+seg.st+'" data-os="'+startLabel+'" data-dur="'+fmtDur(seg.osec)+'" x="'+x0.toFixed(1)+'" y="'+(y+2)+'" width="'+Math.max(0.6,x1-x0).toFixed(1)+'" height="'+(rowH-4)+'" fill="'+(SCOLOR[seg.st]||"#bbb")+'"/>');}}
+      h++;}});
+  }
+  p.push('</svg>');$('grid').innerHTML=p.join('');
+}
+var tip=$('tip');
+function showTip(el,e){var st=el.getAttribute('data-st');if(el.classList.contains('seg')){tip.textContent="Status: "+st+"\nStart: "+el.getAttribute('data-os')+"\nDuration: "+el.getAttribute('data-dur');}else{tip.textContent=el.getAttribute('data-os')+"\n"+st+": "+el.getAttribute('data-cnt');}tip.style.display='block';moveTip(e);}
+function moveTip(e){var x=e.clientX+14,y=e.clientY+14,w=tip.offsetWidth,h=tip.offsetHeight;if(x+w>window.innerWidth-8)x=e.clientX-w-14;if(y+h>window.innerHeight-8)y=e.clientY-h-14;tip.style.left=x+'px';tip.style.top=y+'px';}
+$('grid').addEventListener('mouseover',function(e){var t=e.target;if(t&&t.classList&&(t.classList.contains('seg')||t.classList.contains('cbar')))showTip(t,e);});
+$('grid').addEventListener('mousemove',function(e){if(tip.style.display==='block')moveTip(e);});
+$('grid').addEventListener('mouseout',function(e){var t=e.target;if(t&&t.classList&&(t.classList.contains('seg')||t.classList.contains('cbar')))tip.style.display='none';});
+function fillHours(){var sh=$('sh'),eh=$('eh'),a='',b='';for(var i=0;i<24;i++)a+='<option value="'+i+'">'+pad(i)+':00</option>';for(var j=1;j<=24;j++)b+='<option value="'+j+'">'+(j===24?'24:00 (next day)':pad(j)+':00')+'</option>';sh.innerHTML=a;eh.innerHTML=b;sh.value=0;eh.value=24;}
+function setRange(sd,sh,ed,eh){$('sd').value=sd;$('sh').value=sh;$('ed').value=ed;$('eh').value=eh;}
+function fillAgents(){var box=$('agboxes');if(box.children.length===0){box.innerHTML=TARGET.map(function(n){return '<label style="font-size:14px;color:#3a4048;display:inline-flex;align-items:center;gap:5px"><input type="checkbox" value="'+n+'" checked> '+n+'</label>';}).join('');}}
+function selectedAgents(){var b=$('agboxes').querySelectorAll('input:checked');return Array.prototype.map.call(b,function(x){return x.value;});}function syncMode(){$('agwrap').style.display=($('mode').value==='overlap')?'':'none';}function initAndRender(){fillAgents();syncMode();var ds=allDates();$('range').textContent=ds.length?(ds[0]+" → "+ds[ds.length-1]):"—";
+  if(ds.length){$('sd').min=$('ed').min=ds[0];$('sd').max=$('ed').max=ds[ds.length-1];
+    if(!$('sd').value){var last=ds[ds.length-1];setRange(last,0,last,24);}}
+  $('dash').style.display='block';renderWindow();}
+function msg(t,cls){$('msg').className='msg '+(cls||'');$('msg').textContent=t;}
+$('apply').onclick=renderWindow;$('mode').onchange=function(){syncMode();renderWindow();};$('agboxes').addEventListener('change',renderWindow);
+$('lastday').onclick=function(){var ds=allDates();if(ds.length){var last=ds[ds.length-1];setRange(last,0,last,24);renderWindow();}};
+$('allrange').onclick=function(){var ds=allDates();if(ds.length){setRange(ds[0],0,ds[ds.length-1],24);renderWindow();}};
+$('clear').onclick=function(){localStorage.removeItem(LSKEY);CALLS=[];SEGS=[];$('dash').style.display='none';msg('History cleared.','ok');};
+$('gen').onclick=function(){var sfl=$('f_status').files,afl=$('f_ans').files,ofl=$('f_out').files;if(!afl.length&&!ofl.length&&!sfl.length){msg('Please upload at least one file.','err');return;}msg('Parsing…');
+  function concatAll(list,fn){return Promise.all(Array.prototype.map.call(list,fn)).then(function(arr){var o=[];arr.forEach(function(x){o=o.concat(x);});return o;});}
+  Promise.all([concatAll(afl,parseCallFile),concatAll(ofl,parseCallFile),concatAll(sfl,parseStatusFile)])
+  .then(function(res){var calls=buildCalls(res[0],res[1]);var segs=res[2]||[];var store=$('accum').checked?loadStore():{calls:[],segs:[]};var added=mergeInto(store,calls,segs);if($('accum').checked)saveStore(store);CALLS=store.calls;SEGS=store.segs;$('sd').value='';initAndRender();
+    var nag=(function(){var m={};segs.forEach(function(s){if(s.g)m[s.g]=1;});return Object.keys(m).length;})();
+    msg('Done. Imported '+calls.length+' calls / '+segs.length+' status segments'+(nag?' ('+nag+' agents)':'')+' (+'+added+' new). History total: '+CALLS.length+' calls / '+SEGS.length+' segments.','ok');
+  }).catch(function(e){msg('Error: '+e.message,'err');});
+};
+['f_status','f_ans','f_out'].forEach(function(id){var el=$(id);if(el)el.addEventListener('change',function(){var fn=$('fn_'+id);if(fn)fn.textContent=el.files&&el.files.length?(el.files.length>1?el.files.length+' files selected':el.files[0].name):'No file selected';});});
+fillHours();
+(function(){var s=loadStore();if((s.calls&&s.calls.length)||(s.segs&&s.segs.length)){CALLS=s.calls||[];SEGS=s.segs||[];initAndRender();msg('Loaded from this browser history: '+CALLS.length+' calls / '+SEGS.length+' segments.','ok');}})();
+</script></body></html>
